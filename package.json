@@ -1,0 +1,38 @@
+{
+  "name": "proxy-store",
+  "version": "1.0.0",
+  "description": "Proxy store is an object...that's proxied for single page app state stores.",
+  "main": "src/proxy-store.js",
+  "scripts": {
+    "test": "./node_modules/.bin/mocha --trace-warnings --harmony test.js",
+    "build": "node build.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/senica/proxy-store.git"
+  },
+  "keywords": [
+    "state",
+    "apps",
+    "redux",
+    "proxy",
+    "stores",
+    "store",
+    "storage"
+  ],
+  "author": "Senica Gonzalez (senica@gmail.com)",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/senica/proxy-store/issues"
+  },
+  "homepage": "https://github.com/senica/proxy-store#readme",
+  "devDependencies": {
+    "jsdom": "^11.1.0",
+    "minimist": "^1.2.0",
+    "mocha": "^3.4.2",
+    "simplyimport": "^4.0.0-e",
+    "uglify-es": "^3.0.23",
+    "lazy-events": "git+https://github.com/senica/lazy-events.git"
+  },
+  "dependencies": {}
+}
