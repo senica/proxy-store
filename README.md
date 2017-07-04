@@ -76,7 +76,38 @@ proxy.on('store.intro', (value)=>{
 ## Features and Caveats
 
 If you reassign `ProxyStore` to another variable, you cannot directly assign a
-store to it. You will instead have to call `set`
+store to it. See the *set* API method below.
+
+The store will auto-create (or auto-chain) properties as you request them.
+```js
+// This works, even though we have not specified any values on the ProxyStore
+let store = ProxyStore;
+console.log(store.names[0].name); // Result: {}
+```
+
+You can auto-chain to assign.
+```js
+let store = ProxyStore;
+store.names[0].name = 'senica';
+
+console.log(store) // Results in: { name: [ {name: 'senica'} ] }
+```
+
+Once you assign a primitive to a value, it will not auto-chain.
+```js
+let store = ProxyStore;
+store.name = 'senica';
+console.log(store.name[0].hi) // will error out because name is not an array.
+```
+
+It will auto-correct
+```js
+let store = ProxyStore;
+store.names.one.name = 'senica';
+console.log(store); // result { names: { one: { name: 'senica' } } }
+store.names[1].name = 'senica';
+console.log(store); // result { names: [ <empty>, {name: 'senica' } ] }
+```
 
 ## API
 
@@ -96,8 +127,17 @@ store = { hi: 'bob' }
 Instead do one of the following:
 ```js
 let store = ProxyStore;
-ProxyStore = { hi: 'bob' }
-console.log(store.hi);
+store = store.set({
+  hi: 'bob'
+})
+
+// OR
+
+let store = ProxyStore.set({hi: 'bob'})
+
+// OR assign the ProxyStore first
+ProxyStore.set({hi: 'bob'})
+let store = ProxyStore;
 ```
 
 ### on(event, callback[, lazy])
