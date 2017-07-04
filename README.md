@@ -109,6 +109,37 @@ store.names[1].name = 'senica';
 console.log(store); // result { names: [ <empty>, {name: 'senica' } ] }
 ```
 
+You can assign objects an arrays and it will add them to the proxy.
+```js
+let store = ProxyStore;
+store.names = [ {name: 'senica'} ]
+console.log(store.name[0].name); // result 'senica'
+store.names[0].address.street = 'Fair Lane';
+console.log(store); // result { names: [ {name: 'senica', address: { street: 'Fair Lane' } } ] }
+```
+
+## Recommendations
+
+Namespace everything! In RiotJS this is easy. Since every component has a filename,
+we use this filename for namespacing.
+
+If I have a riot tag called *login.tag* then may namespace on the store for the login
+tag is *login*.  Easy right ;)
+```js
+let store = ProxyStore;
+// Get initial values from localstorage or Redis if they have visited before.
+store.login = {
+  open: true,
+  name: 'Senica',
+  email: ''
+  password: ''
+}
+
+// Then in riot, I can use if={store.login.open} to show my login screen or not.
+// That is oversimplified, but you get the idea.
+```
+
+
 ## API
 
 ### set(object)
