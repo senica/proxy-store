@@ -118,6 +118,19 @@ store.names[0].address.street = 'Fair Lane';
 console.log(store); // result { names: [ {name: 'senica', address: { street: 'Fair Lane' } } ] }
 ```
 
+As with all primitives, after setting a default primitive value, you cannot
+set defaults again as there is not default method.
+```js
+let store = ProxyStore;
+store.login.defaults = {
+  name: 'bob',
+  address: {
+    street: 'hackberry'
+  }
+}
+console.log(store.login.name.defaults) // error
+```
+
 ## Recommendations
 
 Namespace everything! In RiotJS this is easy. Since every component has a filename,
@@ -141,6 +154,26 @@ store.login = {
 
 
 ## API
+
+### defaults
+
+Set a default value for some part of the store.
+
+```js
+let store = ProxyStore;
+store = {
+  login: {
+    name: 'senica'
+  }
+}
+store.login.defaults = {
+  name: 'bob',
+  address: {
+    street: 'hackberry'
+  }
+}
+console.log(store) // { login: { name: 'senica', address: { street: 'hackberry'} } }
+```
 
 ### set(object)
 

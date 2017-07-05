@@ -1,5 +1,106 @@
 describe('Store Tests', ()=>{
 
+  it('single default', async (done)=>{
+    try{
+
+      let {window} = await jsdom(``, [])
+
+      window.ProxyStore.login.email.defaults = 'senica';
+      assert(window.ProxyStore.login.email, 'senica');
+
+      // cannot reassign defaults
+      window.ProxyStore.login.email.defaults = 'bob';
+      assert(window.ProxyStore.login.email, 'senica');
+      done()
+    }catch(e){
+      done(e)
+    }
+  })
+
+  it('default overrides', async (done)=>{
+    try{
+
+      let {window} = await jsdom(``, [])
+
+      window.ProxyStore.login.email.defaults = 'senica';
+      assert(window.ProxyStore.login.email, 'senica');
+      window.ProxyStore.login.defaults = {
+        email: 'bob',
+        name: 'senica'
+      }
+      assert(window.ProxyStore.login.email, 'senica'); // still senica, not bob
+      assert(window.ProxyStore.login.name, 'senica');
+      window.ProxyStore.defaults = {
+        login: {
+          email: 'bob',
+          street: 'hackberry'
+        }
+      }
+      require('assert').deepEqual(window.ProxyStore, {
+        login: {
+          email: 'senica',
+          name: 'senica',
+          street: 'hackberry'
+        }
+      })
+      window.ProxyStore.defaults = 'hi'
+      require('assert').deepEqual(window.ProxyStore, {
+        login: {
+          email: 'senica',
+          name: 'senica',
+          street: 'hackberry'
+        }
+      })
+      window.ProxyStore.login.defaults = 'hi'
+      require('assert').deepEqual(window.ProxyStore, {
+        login: {
+          email: 'senica',
+          name: 'senica',
+          street: 'hackberry'
+        }
+      })
+      done()
+    }catch(e){
+      done(e)
+    }
+  })
+
+  it('object defaults', async (done)=>{
+    try{
+      let {window} = await jsdom(``, [])
+      window.ProxyStore.login.defaults = {
+        name: 'senica',
+        address: {
+          street: 'hackberry'
+        }
+      }
+      require('assert').deepEqual(window.ProxyStore.login, {
+        name: 'senica',
+        address: {
+          street: 'hackberry'
+        }
+      });
+      done()
+    }catch(e){
+      done(e)
+    }
+  })
+
+  it('array defaults', async (done)=>{
+    try{
+      let {window} = await jsdom(``, [])
+      window.ProxyStore.names.defaults = [
+        {name: 'senica'}
+      ]
+      require('assert').deepEqual(window.ProxyStore.names, [
+        {name: 'senica'}
+      ]);
+      done()
+    }catch(e){
+      done(e)
+    }
+  })
+
   it('Get initial store. Should be initialized as a proxy', async (done)=>{
     try{
       let {window} = await jsdom(``, [])

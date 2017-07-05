@@ -13,6 +13,33 @@
     if(debug) console.log.apply(console, arguments);
   }
 
+  function traversable(value){
+    if(Array.isArray(value) || (typeof value === 'object' && value !== null)){
+      return true;
+    }
+    return false;
+  }
+
+  class ProxyArray extends Array{}
+  class ProxyObject extends Object{}
+
+  function fillDefaults(value, proxy){
+    if(!traversable(value)){
+      if(proxy !== null && typeof proxy === 'object'){
+        if(!Object.keys(proxy).length) proxy.__parent__[proxy.__key__] = value;
+      }else if(Array.isArray(proxy)){
+        // This is not sophisticated at all! does not do deep checking on array.
+        if(!proxy.length) proxy.__parent__[proxy.__key__] = value;
+      }
+      // it's already set manually
+    }else{
+      // we know the proxy is traversable otherwise we could not call .defaults
+      for(i in value){
+       fillDefaults(value[i], proxy[i])
+      }
+    }
+  }
+
   /**
    * The parent and key are necessary to modify the chain and not break
    * references
@@ -51,14 +78,14 @@
           log(name, 'is a number')
           // We are trying to access an array, but it's not an array, convert it
           let i = Number(name);
-          if(!Array.isArray(target)){
+          if(!Array.isArray(target)){ // TODO: what does this do for strings?
             log('converting parent to array', name)
-            target.__parent__[target.__key__] = makeProxy([], target.__parent__, target.__key__)
-            target.__parent__[target.__key__][i] = makeProxy({}, target.__parent__[target.__key__], i)
+            target.__parent__[target.__key__] = makeProxy(new ProxyArray(), target.__parent__, target.__key__)
+            target.__parent__[target.__key__][i] = makeProxy(new ProxyObject(), target.__parent__[target.__key__], i)
             return target.__parent__[target.__key__][i]
           }else{
             log('parent is already an array', name)
-            target[i] = makeProxy([], target, i);
+            target[i] = makeProxy(new ProxyArray(), target, i);
             return target[i];
           }
         }else{
@@ -66,12 +93,12 @@
           // We are trying to access an object, but it's not, convert it
           if(Array.isArray(target)){
             log('converting parent to object', name)
-            target.__parent__[target.__key__] = makeProxy({}, target.__parent__, target.__key__)
-            target.__parent__[target.__key__][name] = makeProxy({}, target.__parent__[target.__key__], name)
+            target.__parent__[target.__key__] = makeProxy(new ProxyObject(), target.__parent__, target.__key__)
+            target.__parent__[target.__key__][name] = makeProxy(new ProxyObject(), target.__parent__[target.__key__], name)
             return target.__parent__[target.__key__][name]
           }else{
             log('parent is already an object', name)
-            target[name] = makeProxy({}, target, name);
+            target[name] = makeProxy(new ProxyObject(), target, name);
             return target[name]
           }
         }
@@ -88,7 +115,7 @@
 
       set: (target, name, value, receiver)=>{
         log('setting value', name, target.__label__)
-        if(Array.isArray(value) || (typeof value === 'object' && value !== null)){
+        if(traversable(value)){
           log('value is an array. is it already a proxy?', name)
           // if it already has a __proxy__, then it is being set from the getter.
           // we don't need to make it a proxy again.
@@ -99,7 +126,7 @@
             return true;
           }
         }
-        // primative
+        // primitive or already a proxy
         target[name] = value;
         lazy.emit(target.__label__ + '.' + name.toString(), target[name])
         return true;
@@ -126,17 +153,29 @@
         return (parent.__label__ ? (parent.__label__ + '.') : '') + key.toString();
       }
     })
+    Object.defineProperty(proxy, 'defaults', {
+      get: ()=>{
+        log('get proxy', proxy, proxy.__label__)
+        return proxy;
+      },
+      set: (value)=>{
+        log('set proxy', value, proxy, proxy.__label__)
+        fillDefaults(value, proxy, __target__)
+      }
+    })
 
     // They are wanting to make a proxy of full object or array
     // All the children need to be proxied as well.
-    for(i in proxy){
-      log('checking value', i)
-      if(Array.isArray(proxy[i]) || (typeof proxy[i] === 'object' && proxy[i] !== null)){
-        log('converting to proxy', i)
-        proxy[i] = makeProxy(proxy[i], proxy, i);
-      }else{
-        // this is necessary so the 'setter' will trigger
-        proxy[i] = proxy[i];
+    if(traversable(proxy)){
+      for(i in proxy){
+        log('checking value', i)
+        if(traversable(proxy[i])){
+          log('converting to proxy', i)
+          proxy[i] = makeProxy(proxy[i], proxy, i);
+        }else{
+          // this is necessary so the 'setter' will trigger
+          proxy[i] = proxy[i];
+        }
       }
     }
 
@@ -150,7 +189,7 @@
   let proxy;
 
   function set(value){
-    if(!Array.isArray(value) && (typeof value !== 'object' || value === null)){
+    if(!traversable(value)){
       throw new Error('Store must be an array or an object.')
     }
 
