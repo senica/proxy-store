@@ -41,7 +41,7 @@ describe('Compiling ProxyStore', ()=>{
       let result = ug.minify(code);
       if(result.error) return done(result.error);
 
-      //code = result.code;
+      code = result.code;
 
       fs.writeFileSync(__dirname + '/dist/proxy-store.min.js', code);
 
