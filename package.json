@@ -28,11 +28,11 @@
   "homepage": "https://github.com/senica/proxy-store#readme",
   "devDependencies": {
     "jsdom": "^11.1.0",
+    "lazy-events": "git+https://github.com/senica/lazy-events.git",
     "minimist": "^1.2.0",
     "mocha": "^3.4.2",
     "simplyimport": "^4.0.0-e",
-    "uglify-es": "^3.0.23",
-    "lazy-events": "git+https://github.com/senica/lazy-events.git"
+    "uglify-es": "^3.0.23"
   },
   "dependencies": {}
 }
