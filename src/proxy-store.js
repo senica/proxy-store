@@ -64,6 +64,11 @@
           return target[name]
         }
 
+        // Return length of object keys or array
+        if(name === 'length'){
+          return typeof target === 'object' ? Object.keys(target).length : target.length;
+        }
+
         if(typeof name === 'symbol'){
           log('ignoring', name)
           return

@@ -230,6 +230,27 @@ describe('Store Tests', ()=>{
     }
   })
 
+  it('Get length', async (done)=>{
+    try{
+      let { window } = await jsdom(``, [])
+      window.ProxyStore.names[1].name = 'senica'
+      assert(window.ProxyStore.names[1].name.length, 6) // primitive string uses internal functions.
+      assert(window.ProxyStore.names.length, 2) // counts blank values also
+      assert(window.ProxyStore.test.length, 0); // object
+      window.ProxyStore.test = [];
+      assert(window.ProxyStore.test.length, 0);
+      window.ProxyStore.test = ['hi'];
+      assert(window.ProxyStore.test.length, 1); // array length
+      window.ProxyStore.test = {test: 'length', again: 'test'};
+      assert(window.ProxyStore.test.length, 2); // object keys
+      window.ProxyStore.test = {test: 'length', again: 'test', length: 10};
+      assert(window.ProxyStore.test.length, 10); // if property exists on object, return that
+      done()
+    }catch(e){
+      done(e)
+    }
+  })
+
   it('Check labels', async (done)=>{
     try{
       let { window } = await jsdom(``, [])

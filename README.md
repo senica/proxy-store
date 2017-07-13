@@ -131,6 +131,13 @@ store.login.defaults = {
 console.log(store.login.name.defaults) // error
 ```
 
+It will return length of objects and arrays
+If an object has the property of length, it will return that instead of the count of the keys
+```js
+let store = ProxyStore;
+console.log(store.login.length) // 0
+```
+
 ## Recommendations
 
 Namespace everything! In RiotJS this is easy. Since every component has a filename,
