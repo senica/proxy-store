@@ -5,11 +5,13 @@ describe('Store Tests', ()=>{
 
       let {window} = await jsdom(``, [])
 
-      window.ProxyStore.login.email.defaults = 'senica';
+      window.ProxyStore.login.email.default('senica');
       assert(window.ProxyStore.login.email, 'senica');
 
       // cannot reassign defaults
-      window.ProxyStore.login.email.defaults = 'bob';
+      window.ProxyStore.login.default({
+        email: 'bob'
+      });
       assert(window.ProxyStore.login.email, 'senica');
       done()
     }catch(e){
@@ -22,20 +24,20 @@ describe('Store Tests', ()=>{
 
       let {window} = await jsdom(``, [])
 
-      window.ProxyStore.login.email.defaults = 'senica';
+      window.ProxyStore.login.email.default('senica');
       assert(window.ProxyStore.login.email, 'senica');
-      window.ProxyStore.login.defaults = {
+      window.ProxyStore.login.default({
         email: 'bob',
         name: 'senica'
-      }
+      })
       assert(window.ProxyStore.login.email, 'senica'); // still senica, not bob
       assert(window.ProxyStore.login.name, 'senica');
-      window.ProxyStore.defaults = {
+      window.ProxyStore.default({
         login: {
           email: 'bob',
           street: 'hackberry'
         }
-      }
+      })
       require('assert').deepEqual(window.ProxyStore, {
         login: {
           email: 'senica',
@@ -43,7 +45,7 @@ describe('Store Tests', ()=>{
           street: 'hackberry'
         }
       })
-      window.ProxyStore.defaults = 'hi'
+      window.ProxyStore.default('hi')
       require('assert').deepEqual(window.ProxyStore, {
         login: {
           email: 'senica',
@@ -51,7 +53,7 @@ describe('Store Tests', ()=>{
           street: 'hackberry'
         }
       })
-      window.ProxyStore.login.defaults = 'hi'
+      window.ProxyStore.login.default('hi')
       require('assert').deepEqual(window.ProxyStore, {
         login: {
           email: 'senica',
@@ -68,12 +70,12 @@ describe('Store Tests', ()=>{
   it('object defaults', async (done)=>{
     try{
       let {window} = await jsdom(``, [])
-      window.ProxyStore.login.defaults = {
+      window.ProxyStore.login.default({
         name: 'senica',
         address: {
           street: 'hackberry'
         }
-      }
+      })
       require('assert').deepEqual(window.ProxyStore.login, {
         name: 'senica',
         address: {
@@ -89,9 +91,9 @@ describe('Store Tests', ()=>{
   it('array defaults', async (done)=>{
     try{
       let {window} = await jsdom(``, [])
-      window.ProxyStore.names.defaults = [
+      window.ProxyStore.names.default([
         {name: 'senica'}
-      ]
+      ])
       require('assert').deepEqual(window.ProxyStore.names, [
         {name: 'senica'}
       ]);

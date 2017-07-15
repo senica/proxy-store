@@ -119,6 +119,31 @@
       },
 
       set: (target, name, value, receiver)=>{
+
+        if(traversable(value)){
+          // Check if they are the same first
+          target[name] = makeProxy(Array.isArray(value) ? [] : {}, target, name);
+
+          for(i in value){
+            log('checking value', i)
+            if(traversable(value[i])){
+              target[name][i] = makeProxy(value[i], target[name], i);
+            }else{
+              target[name][i] = value[i];
+            }
+          }
+
+          // trigger after children are set so the value is the whole object
+          lazy.emit(target.__label__ + '.' + name.toString(), target[name])
+
+        }else{
+          //let same = target[name] == value;
+          target[name] = value;
+          lazy.emit(target.__label__ + '.' + name.toString(), target[name])
+          return true;
+        }
+
+        /*
         log('setting value', name, target.__label__)
         if(traversable(value)){
           log('value is an array. is it already a proxy?', name)
@@ -135,6 +160,7 @@
         target[name] = value;
         lazy.emit(target.__label__ + '.' + name.toString(), target[name])
         return true;
+        */
       }
     });
 
@@ -158,19 +184,17 @@
         return (parent.__label__ ? (parent.__label__ + '.') : '') + key.toString();
       }
     })
-    Object.defineProperty(proxy, 'defaults', {
+    Object.defineProperty(proxy, 'default', {
       get: ()=>{
-        log('get proxy', proxy, proxy.__label__)
-        return proxy;
+        return (value)=>{
+          fillDefaults(value, proxy, __target__)
+        }
       },
-      set: (value)=>{
-        log('set proxy', value, proxy, proxy.__label__)
-        fillDefaults(value, proxy, __target__)
-      }
     })
 
     // They are wanting to make a proxy of full object or array
     // All the children need to be proxied as well.
+    /*
     if(traversable(proxy)){
       for(i in proxy){
         log('checking value', i)
@@ -183,6 +207,7 @@
         }
       }
     }
+    */
 
     return proxy;
   }
