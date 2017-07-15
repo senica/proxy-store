@@ -116,9 +116,9 @@ describe('Store Tests', ()=>{
   it('Assign store directly from window.ProxyStore', async (done)=>{
     try{
       let {window} = await jsdom(``, [])
-      window.ProxyStore = {
+      window.ProxyStore.set({
         hi: 'senica'
-      }
+      })
       require('assert').deepEqual(window.ProxyStore, {
         hi: 'senica'
       });
@@ -161,13 +161,13 @@ describe('Store Tests', ()=>{
   it('Set store as object', async (done)=>{
     try{
       let { window } = await jsdom(``, [])
-      window.ProxyStore = {
+      window.ProxyStore.set({
         names: [
           {
             name: 'senica'
           }
         ]
-      }
+      })
       assert(window.ProxyStore.__proxy__, true);
       assert(window.ProxyStore.names.__proxy__, true);
       assert(window.ProxyStore.names[0].__proxy__, true);
@@ -197,7 +197,7 @@ describe('Store Tests', ()=>{
   it('Set store as array.', async (done)=>{
     try{
       let { window } = await jsdom(``, [])
-      window.ProxyStore = ['senica', 'bob']
+      window.ProxyStore.set(['senica', 'bob'])
       assert(window.ProxyStore.__proxy__, true);
       // Primatives don't get proxied
       assert(typeof window.ProxyStore[0].__proxy__, 'undefined');
@@ -256,13 +256,13 @@ describe('Store Tests', ()=>{
   it('Check labels', async (done)=>{
     try{
       let { window } = await jsdom(``, [])
-      window.ProxyStore = {
+      window.ProxyStore.set({
         names: [
           {
             name: 'senica'
           }
         ]
-      }
+      })
       assert(window.ProxyStore.names[0].__label__, 'store.names.0');
       done()
     }catch(e){
@@ -274,13 +274,13 @@ describe('Store Tests', ()=>{
     try{
       let { window } = await jsdom(``, [])
       assert(typeof window.ProxyStore.on, 'function');
-      window.ProxyStore = {
+      window.ProxyStore.set({
         names: [
           {
             name: 'senica'
           }
         ]
-      }
+      })
       assert(typeof window.ProxyStore.on, 'function');
       done()
     }catch(e){
@@ -300,13 +300,13 @@ describe('Store Tests', ()=>{
         })
       }
 
-      window.ProxyStore = {
+      window.ProxyStore.set({
         names: [
           {
             name: 'senica'
           }
         ]
-      }
+      })
 
       let after = ()=>{
         return new Promise((resolve, reject)=>{
@@ -343,13 +343,13 @@ describe('Store Tests', ()=>{
         })
       }
 
-      window.ProxyStore = {
+      window.ProxyStore.set({
         names: [
           {
             name: 'senica'
           }
         ]
-      }
+      })
 
       // This event was registered after, but lazy is turned off, so it does not run.
       let after = ()=>{

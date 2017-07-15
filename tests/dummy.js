@@ -1,3 +1,35 @@
+describe('dummy', ()=>{
+  it('Set store as object', async (done)=>{
+    try{
+      let { window } = await jsdom(``, [])
+      window.ProxyStore.set({
+        names: [
+          {
+            name: 'senica'
+          }
+        ]
+      })
+      console.log(window.ProxyStore.set)
+      let store = window.ProxyStore
+      store.set({
+        names: [
+          {
+            name: 'senica'
+          }
+        ]
+      })
+      assert(window.ProxyStore.__proxy__, true);
+      assert(window.ProxyStore.names.__proxy__, true);
+      assert(window.ProxyStore.names[0].__proxy__, true);
+      // Primatives don't get proxied
+      assert(typeof window.ProxyStore.names[0].name.__proxy__, 'undefined');
+      done()
+    }catch(e){
+      done(e)
+    }
+  })
+})
+
 /*
 describe('test', ()=>{
   it('Test looping events with array; events should only trigger if they are different', async (done)=>{

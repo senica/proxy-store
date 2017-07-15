@@ -85,12 +85,12 @@
           let i = Number(name);
           if(!Array.isArray(target)){ // TODO: what does this do for strings?
             log('converting parent to array', name)
-            target.__parent__[target.__key__] = makeProxy(new ProxyArray(), target.__parent__, target.__key__)
-            target.__parent__[target.__key__][i] = makeProxy(new ProxyObject(), target.__parent__[target.__key__], i)
+            makeProxy(new ProxyArray(), target.__parent__, target.__key__)
+            makeProxy(new ProxyObject(), target.__parent__[target.__key__], i)
             return target.__parent__[target.__key__][i]
           }else{
             log('parent is already an array', name)
-            target[i] = makeProxy(new ProxyArray(), target, i);
+            makeProxy(new ProxyArray(), target, i);
             return target[i];
           }
         }else{
@@ -98,12 +98,12 @@
           // We are trying to access an object, but it's not, convert it
           if(Array.isArray(target)){
             log('converting parent to object', name)
-            target.__parent__[target.__key__] = makeProxy(new ProxyObject(), target.__parent__, target.__key__)
-            target.__parent__[target.__key__][name] = makeProxy(new ProxyObject(), target.__parent__[target.__key__], name)
+            makeProxy(new ProxyObject(), target.__parent__, target.__key__)
+            makeProxy(new ProxyObject(), target.__parent__[target.__key__], name)
             return target.__parent__[target.__key__][name]
           }else{
             log('parent is already an object', name)
-            target[name] = makeProxy(new ProxyObject(), target, name);
+            makeProxy(new ProxyObject(), target, name);
             return target[name]
           }
         }
@@ -119,15 +119,15 @@
       },
 
       set: (target, name, value, receiver)=>{
-
+        console.log('setting', target, name, value)
         if(traversable(value)){
           // Check if they are the same first
-          target[name] = makeProxy(Array.isArray(value) ? [] : {}, target, name);
+          makeProxy(Array.isArray(value) ? [] : {}, target, name);
 
           for(i in value){
             log('checking value', i)
             if(traversable(value[i])){
-              target[name][i] = makeProxy(value[i], target[name], i);
+              makeProxy(value[i], target[name], i);
             }else{
               target[name][i] = value[i];
             }
@@ -209,59 +209,76 @@
     }
     */
 
-    return proxy;
+    console.log('should set', parent, key, proxy)
+    parent[key] = proxy;
   }
 
   // This is so we have something to actually proxy.
-  const root = {
-    store: {}
-  };
-  let proxy;
+  const root = {};
 
-  function set(value){
-    if(!traversable(value)){
-      throw new Error('Store must be an array or an object.')
+  let proxy = new Proxy(root, {
+    get: (target, name)=>{
+
+      // Request to turn object to JSON from JSON.stringify
+      if(name === 'toJSON'){
+        return JSON.stringify(target);
+      }
+
+      if(name === 'store'){
+        return target[name]
+      }
+    },
+
+    set: (target, name, value, receiver)=>{
+      if(name == 'store'){
+        console.log('setting store')
+
+        if(!traversable(value)){
+          throw new Error('Store must be an array or an object.')
+        }
+
+        target[name] = value;
+
+        // add event handler back on.
+        Object.defineProperty(target[name], 'on', {
+          enumerable: false,
+          configurable: false,
+          writable:  false,
+          value: lazy.on
+        });
+        Object.defineProperty(target[name], 'one', {
+          enumerable: false,
+          configurable: false,
+          writable: false,
+          value: lazy.one
+        });
+        Object.defineProperty(target[name], 'off', {
+          enumerable: false,
+          configurable: false,
+          writable: false,
+          value: lazy.off
+        });
+
+        Object.defineProperty(target[name], 'set', {
+          enumerable: false,
+          get: ()=>{
+            return (value)=>{
+              proxy.store = value;
+            }
+          }
+        });
+
+      }else{
+        // don't add it!
+      }
     }
+  })
 
-    proxy = makeProxy(value, root, 'store')
-
-    // add event handler back on.
-    Object.defineProperty(proxy, 'on', {
-      enumerable: false,
-      configurable: false,
-      writable: false,
-      value: lazy.on
-    });
-    Object.defineProperty(proxy, 'one', {
-      enumerable: false,
-      configurable: false,
-      writable: false,
-      value: lazy.one
-    });
-    Object.defineProperty(proxy, 'off', {
-      enumerable: false,
-      configurable: false,
-      writable: false,
-      value: lazy.off
-    });
-
-    // provide a means to set the proxy
-    Object.defineProperty(proxy, 'set', {
-      enumerable: false,
-      configurable: false,
-      writable: false,
-      value: set
-    })
-
-    return proxy
-  }
-
-  // build proxy
-  set({})
-
+  // Kick it off so set and event functions are bound to store property
+  proxy.store = {};
 
   if (typeof module !== 'undefined' && typeof module.exports !== 'undefined') {
-    module.exports = proxy;
+    module.exports = root.store;
   }else if(typeof define === 'function' && define.amd) {
     define([], function() {
       return proxy;
@@ -269,10 +286,79 @@
   }
   if(typeof window === 'object'){
     Object.defineProperty(window, 'ProxyStore', {
-      set: set,
+      set:(value)=>{
+        proxy.store = value;
+      },
       get: ()=>{
-        return proxy;
+        return proxy.store;
       }
     })
   }
+
+  /*
+  function set(value){
+
+    if(!traversable(value)){
+      throw new Error('Store must be an array or an object.')
+    }
+
+    log('setting proxy')
+
+    makeProxy(value, root, 'store')
+
+    log('done')
+
+    // add event handler back on.
+    Object.defineProperty(root.store, 'on', {
+      enumerable: false,
+      configurable: false,
+      writable:  false,
+      value: lazy.on
+    });
+    Object.defineProperty(root.store, 'one', {
+      enumerable: false,
+      configurable: false,
+      writable: false,
+      value: lazy.one
+    });
+    Object.defineProperty(root.store, 'off', {
+      enumerable: false,
+      configurable: false,
+      writable: false,
+      value: lazy.off
+    });
+
+    Object.defineProperty(root.store, 'set', {
+      enumerable: false,
+      get: ()=>{
+        return set;
+      }
+    });
+
+    return root.store
+  }
+
+  set({})
+
+
+
+  if (typeof module !== 'undefined' && typeof module.exports !== 'undefined') {
+    module.exports = root.store;
+  }else if(typeof define === 'function' && define.amd) {
+    define([], function() {
+      return root.store;
+    });
+  }
+  if(typeof window === 'object'){
+    Object.defineProperty(window, 'ProxyStore', {
+      set:(value)=>{
+        console.warn('You are using this the wrong way. Use ProxyStore.set instead of ProxyStore =')
+        set(value);
+      },
+      get: ()=>{
+        return root.store;
+      }
+    })
+  }
+  */
 })()
