@@ -5,11 +5,16 @@ describe('Store Tests', ()=>{
 
       let {window} = await jsdom(``, [])
 
-      window.ProxyStore.login.email.defaults = 'senica';
+      window.ProxyStore.login.email.default('senica');
       assert(window.ProxyStore.login.email, 'senica');
 
+      // Once a primitive value has been set, we can't set defaults again.
+      assert(typeof window.ProxyStore.login.email.default, 'undefined')
+
       // cannot reassign defaults
-      window.ProxyStore.login.email.defaults = 'bob';
+      window.ProxyStore.login.default({
+        email: 'bob'
+      });
       assert(window.ProxyStore.login.email, 'senica');
       done()
     }catch(e){
@@ -22,20 +27,20 @@ describe('Store Tests', ()=>{
 
       let {window} = await jsdom(``, [])
 
-      window.ProxyStore.login.email.defaults = 'senica';
+      window.ProxyStore.login.email.default('senica');
       assert(window.ProxyStore.login.email, 'senica');
-      window.ProxyStore.login.defaults = {
+      window.ProxyStore.login.default({
         email: 'bob',
         name: 'senica'
-      }
+      })
       assert(window.ProxyStore.login.email, 'senica'); // still senica, not bob
       assert(window.ProxyStore.login.name, 'senica');
-      window.ProxyStore.defaults = {
+      window.ProxyStore.default({
         login: {
           email: 'bob',
           street: 'hackberry'
         }
-      }
+      })
       require('assert').deepEqual(window.ProxyStore, {
         login: {
           email: 'senica',
@@ -43,7 +48,7 @@ describe('Store Tests', ()=>{
           street: 'hackberry'
         }
       })
-      window.ProxyStore.defaults = 'hi'
+      window.ProxyStore.default('hi')
       require('assert').deepEqual(window.ProxyStore, {
         login: {
           email: 'senica',
@@ -51,7 +56,7 @@ describe('Store Tests', ()=>{
           street: 'hackberry'
         }
       })
-      window.ProxyStore.login.defaults = 'hi'
+      window.ProxyStore.login.default('hi')
       require('assert').deepEqual(window.ProxyStore, {
         login: {
           email: 'senica',
@@ -68,12 +73,12 @@ describe('Store Tests', ()=>{
   it('object defaults', async (done)=>{
     try{
       let {window} = await jsdom(``, [])
-      window.ProxyStore.login.defaults = {
+      window.ProxyStore.login.default({
         name: 'senica',
         address: {
           street: 'hackberry'
         }
-      }
+      })
       require('assert').deepEqual(window.ProxyStore.login, {
         name: 'senica',
         address: {
@@ -89,9 +94,9 @@ describe('Store Tests', ()=>{
   it('array defaults', async (done)=>{
     try{
       let {window} = await jsdom(``, [])
-      window.ProxyStore.names.defaults = [
+      window.ProxyStore.names.default([
         {name: 'senica'}
-      ]
+      ])
       require('assert').deepEqual(window.ProxyStore.names, [
         {name: 'senica'}
       ]);
@@ -114,9 +119,9 @@ describe('Store Tests', ()=>{
   it('Assign store directly from window.ProxyStore', async (done)=>{
     try{
       let {window} = await jsdom(``, [])
-      window.ProxyStore = {
+      window.ProxyStore.set({
         hi: 'senica'
-      }
+      })
       require('assert').deepEqual(window.ProxyStore, {
         hi: 'senica'
       });
@@ -159,13 +164,13 @@ describe('Store Tests', ()=>{
   it('Set store as object', async (done)=>{
     try{
       let { window } = await jsdom(``, [])
-      window.ProxyStore = {
+      window.ProxyStore.set({
         names: [
           {
             name: 'senica'
           }
         ]
-      }
+      })
       console.dir(window.ProxyStore);
       assert(window.ProxyStore.__proxy__, true);
       assert(window.ProxyStore.names.__proxy__, true);
@@ -196,11 +201,19 @@ describe('Store Tests', ()=>{
   it('Set store as array.', async (done)=>{
     try{
       let { window } = await jsdom(``, [])
-      window.ProxyStore = ['senica', 'bob']
+      window.ProxyStore.set(['senica', 'bob'])
       assert(window.ProxyStore.__proxy__, true);
       // Primatives don't get proxied
       assert(typeof window.ProxyStore[0].__proxy__, 'undefined');
       assert(window.ProxyStore[0], 'senica');
+
+      // Make sure we can set it again
+      window.ProxyStore.set(['bob'])
+      assert(window.ProxyStore.__proxy__, true);
+      assert(typeof window.ProxyStore[0].__proxy__, 'undefined');
+      assert(window.ProxyStore[0], 'bob');
+      assert(window.ProxyStore.length, 1);
+
       done()
     }catch(e){
       done(e)
@@ -255,13 +268,13 @@ describe('Store Tests', ()=>{
   it('Check labels', async (done)=>{
     try{
       let { window } = await jsdom(``, [])
-      window.ProxyStore = {
+      window.ProxyStore.set({
         names: [
           {
             name: 'senica'
           }
         ]
-      }
+      })
       assert(window.ProxyStore.names[0].__label__, 'store.names.0');
       done()
     }catch(e){
@@ -273,13 +286,13 @@ describe('Store Tests', ()=>{
     try{
       let { window } = await jsdom(``, [])
       assert(typeof window.ProxyStore.on, 'function');
-      window.ProxyStore = {
+      window.ProxyStore.set({
         names: [
           {
             name: 'senica'
           }
         ]
-      }
+      })
       assert(typeof window.ProxyStore.on, 'function');
       done()
     }catch(e){
@@ -299,13 +312,13 @@ describe('Store Tests', ()=>{
         })
       }
 
-      window.ProxyStore = {
+      window.ProxyStore.set({
         names: [
           {
             name: 'senica'
           }
         ]
-      }
+      })
 
       let after = ()=>{
         return new Promise((resolve, reject)=>{
@@ -342,13 +355,13 @@ describe('Store Tests', ()=>{
         })
       }
 
-      window.ProxyStore = {
+      window.ProxyStore.set({
         names: [
           {
             name: 'senica'
           }
         ]
-      }
+      })
 
       // This event was registered after, but lazy is turned off, so it does not run.
       let after = ()=>{
@@ -402,7 +415,6 @@ describe('Store Tests', ()=>{
     }
   })
 
-  /*
   it('Test looping events with array; events should only trigger if they are different', async (done)=>{
     try{
       let { window } = await jsdom(``, [])
@@ -428,6 +440,5 @@ describe('Store Tests', ()=>{
       done(e)
     }
   })
-  */
 
 })
