@@ -10,7 +10,17 @@
 
   let debug = false;
   function log(){
-    if(debug) console.log.apply(console, arguments);
+    if(debug) log.apply(console, arguments);
+  }
+
+  // Check if two values are both arrays, or both objects
+  function sameType(first, second){
+    if(Array.isArray(first) && Array.isArray(second)) return true;
+    // both object, neither is an array, and neither is null
+    if( (!Array.isArray(first) && typeof first === 'object' && first !== null) &&
+        (!Array.isArray(second) && typeof second === 'object' && second !== null)
+      ) return true;
+    return false;
   }
 
   function traversable(value){
@@ -46,9 +56,10 @@
    * @param  {Object | Array} __target__ What we are making into a proxy
    * @param {Object} parent The parent of the __target__
    * @param {[type]} key   The key or property on the parent that defines the __target__
+   * @param {boolean} init If this is the main store being set
    * @return {Proxy Object} Use your object like normal.
    */
-  function makeProxy(__target__, parent, key){
+  function makeProxy(__target__, parent, key, init = false){
     let proxy = new Proxy(__target__, {
       get: (target, name)=>{
         log('getting', name)
@@ -119,48 +130,69 @@
       },
 
       set: (target, name, value, receiver)=>{
-        console.log('setting', target, name, value)
-        if(traversable(value)){
-          // Check if they are the same first
-          makeProxy(Array.isArray(value) ? [] : {}, target, name);
+        log('setting ', name, ' on ', target, ' to ', value);
 
-          for(i in value){
-            log('checking value', i)
-            if(traversable(value[i])){
-              makeProxy(value[i], target[name], i);
-            }else{
-              target[name][i] = value[i];
+        if(traversable(value)){
+          // Is the incoming value the same, and it's already a proxy
+          if(sameType(target[name], value) && target[name].__proxy__){
+            // We do not need to set the value again, it's the same
+            if(JSON.stringify(target[name]) == JSON.stringify(value)){
+              log('values are the same', value);
+              return true; // don't set the value or change it
             }
+
+            // Make them the same length
+            if(Array.isArray(target[name])){
+              let removed = target[name].splice(value.length);
+              // TODO: trigger event here notifying that the items were removed
+              // if we do this, should we traverse children and trigger?
+              // see if deleteProperty proxy handler will work for this
+
+            // Remove properties in target that are not in value
+            }else{
+              for(let k in target[name]){
+                if(typeof value[k] === 'undefined'){
+                  delete target[name][k];
+                  // TODO: trigger event here notifying that the items were removed
+                  // If we do that, should be trigger on all children?
+                  // see if deleteProperty proxy handler will work for this
+                }
+              }
+            }
+          }else{
+            // They are not the same type or the target[name] is not a proxy
+            // we'll start with a blank array or object and add properties
+            makeProxy(Array.isArray(value) ? [] : {}, target, name);
+          }
+
+          for(let i in value){
+            if(JSON.stringify(value[i]) == JSON.stringify(target[name][i])){
+              log('child values are the same', value[i]);
+              continue; // no change, don't trigger or change it. remember the incoming value is not a proxy most likely
+            }
+
+            // set handler will trigger events and change to proxy if necessary
+            target[name][i] = value[i];
           }
 
           // trigger after children are set so the value is the whole object
           lazy.emit(target.__label__ + '.' + name.toString(), target[name])
 
+          return true;
+
+        // incoming value is not traversable
         }else{
-          //let same = target[name] == value;
+          // if we decide to trigger above, then we should check that the
+          // target[name] is not currently traversable, if it is, we need to
+          // send triggers for each removed property
+          if(target[name] == value){
+            log('values are the same', value);
+            return true; // nothign to change or trigger
+          }
           target[name] = value;
           lazy.emit(target.__label__ + '.' + name.toString(), target[name])
           return true;
         }
-
-        /*
-        log('setting value', name, target.__label__)
-        if(traversable(value)){
-          log('value is an array. is it already a proxy?', name)
-          // if it already has a __proxy__, then it is being set from the getter.
-          // we don't need to make it a proxy again.
-          if(!value.__proxy__){
-            log('it is not a proxy, we need to make it one', name)
-            target[name] = makeProxy(value, target, name);
-            lazy.emit(target.__label__ + '.' + name.toString(), target[name])
-            return true;
-          }
-        }
-        // primitive or already a proxy
-        target[name] = value;
-        lazy.emit(target.__label__ + '.' + name.toString(), target[name])
-        return true;
-        */
       }
     });
 
@@ -181,6 +213,7 @@
     })
     Object.defineProperty(proxy, '__label__', {
       get: ()=>{
+        if(init) return false; // remove proxy namespace
         return (parent.__label__ ? (parent.__label__ + '.') : '') + key.toString();
       }
     })
@@ -192,173 +225,70 @@
       },
     })
 
-    // They are wanting to make a proxy of full object or array
-    // All the children need to be proxied as well.
-    /*
-    if(traversable(proxy)){
-      for(i in proxy){
-        log('checking value', i)
-        if(traversable(proxy[i])){
-          log('converting to proxy', i)
-          proxy[i] = makeProxy(proxy[i], proxy, i);
-        }else{
-          // this is necessary so the 'setter' will trigger
-          proxy[i] = proxy[i];
-        }
-      }
-    }
-    */
-
-    console.log('should set', parent, key, proxy)
+    log('should set', parent, key, proxy)
     parent[key] = proxy;
   }
 
   // This is so we have something to actually proxy.
   const root = {};
+  makeProxy({}, root, 'proxy', true);
+  root.proxy.store = {}; // the store has to be set so the setter gets triggered
+  bind();
 
-  let proxy = new Proxy(root, {
-    get: (target, name)=>{
-
-      // Request to turn object to JSON from JSON.stringify
-      if(name === 'toJSON'){
-        return JSON.stringify(target);
-      }
-
-      if(name === 'store'){
-        return target[name]
-      }
-    },
-
-    set: (target, name, value, receiver)=>{
-      if(name == 'store'){
-        console.log('setting store')
-
-        if(!traversable(value)){
-          throw new Error('Store must be an array or an object.')
-        }
-
-        target[name] = value;
-
-        // add event handler back on.
-        Object.defineProperty(target[name], 'on', {
-          enumerable: false,
-          configurable: false,
-          writable:  false,
-          value: lazy.on
-        });
-        Object.defineProperty(target[name], 'one', {
-          enumerable: false,
-          configurable: false,
-          writable: false,
-          value: lazy.one
-        });
-        Object.defineProperty(target[name], 'off', {
-          enumerable: false,
-          configurable: false,
-          writable: false,
-          value: lazy.off
-        });
-
-        Object.defineProperty(target[name], 'set', {
-          enumerable: false,
-          get: ()=>{
-            return (value)=>{
-              proxy.store = value;
-            }
-          }
-        });
-
-      }else{
-        // don't add it!
-      }
-    }
-  })
-
-  // Kick it off so set and event functions are bound to store property
-  proxy.store = {};
-
-  if (typeof module !== 'undefined' && typeof module.exports !== 'undefined') {
-    module.exports = root.store;
-  }else if(typeof define === 'function' && define.amd) {
-    define([], function() {
-      return proxy;
-    });
-  }
-  if(typeof window === 'object'){
-    Object.defineProperty(window, 'ProxyStore', {
-      set:(value)=>{
-        proxy.store = value;
-      },
-      get: ()=>{
-        return proxy.store;
-      }
-    })
-  }
-
-  /*
-  function set(value){
-
-    if(!traversable(value)){
-      throw new Error('Store must be an array or an object.')
-    }
-
-    log('setting proxy')
-
-    makeProxy(value, root, 'store')
-
-    log('done')
-
-    // add event handler back on.
-    Object.defineProperty(root.store, 'on', {
+  // Bind events to store
+  function bind(){
+    Object.defineProperty(root.proxy.store, 'on', {
       enumerable: false,
       configurable: false,
       writable:  false,
       value: lazy.on
     });
-    Object.defineProperty(root.store, 'one', {
+    Object.defineProperty(root.proxy.store, 'one', {
       enumerable: false,
       configurable: false,
       writable: false,
       value: lazy.one
     });
-    Object.defineProperty(root.store, 'off', {
+    Object.defineProperty(root.proxy.store, 'off', {
       enumerable: false,
       configurable: false,
       writable: false,
       value: lazy.off
     });
 
-    Object.defineProperty(root.store, 'set', {
+    Object.defineProperty(root.proxy.store, 'set', {
       enumerable: false,
       get: ()=>{
-        return set;
+        return (value)=>{
+          if(!traversable(value)){
+            throw new Error('Store must be an array or an object.')
+          }
+          log('set function', value)
+          root.proxy.store = value;
+          //bind();
+          return root.proxy.store
+        }
       }
     });
-
-    return root.store
   }
 
-  set({})
-
-
-
   if (typeof module !== 'undefined' && typeof module.exports !== 'undefined') {
-    module.exports = root.store;
+    module.exports = root.proxy.store;
   }else if(typeof define === 'function' && define.amd) {
     define([], function() {
-      return root.store;
+      return root.proxy.store;
     });
   }
   if(typeof window === 'object'){
     Object.defineProperty(window, 'ProxyStore', {
       set:(value)=>{
-        console.warn('You are using this the wrong way. Use ProxyStore.set instead of ProxyStore =')
-        set(value);
+        throw new Error('Do not set the store like this. Use .set function instead. e.g. window.Proxy.store.set({})')
+        // root.proxy.store = value;
+        // bind();
       },
       get: ()=>{
-        return root.store;
+        return root.proxy.store;
       }
     })
   }
-  */
 })()

@@ -38,14 +38,14 @@ Include the file in your html page.
 
 Initialize your store (if necessary):
 ```javascript
-ProxyStore = {
+ProxyStore.set({
   login: {
     name: '',
     email: '',
     password: '',
     open: true
   }
-}
+})
 ProxyStore.on('store.login.open', (value)=>{
   // Do something because the login.open value changed.
   console.log((value ? 'Login screen to be opened.' : 'Close sesame.'))
@@ -122,12 +122,12 @@ As with all primitives, after setting a default primitive value, you cannot
 set defaults again as there is not default method.
 ```js
 let store = ProxyStore;
-store.login.defaults = {
+store.login.default({
   name: 'bob',
   address: {
     street: 'hackberry'
   }
-}
+})
 console.log(store.login.name.defaults) // error
 ```
 
@@ -168,17 +168,17 @@ Set a default value for some part of the store.
 
 ```js
 let store = ProxyStore;
-store = {
+store.set({
   login: {
     name: 'senica'
   }
-}
-store.login.defaults = {
+})
+store.login.default({
   name: 'bob',
   address: {
     street: 'hackberry'
   }
-}
+})
 console.log(store) // { login: { name: 'senica', address: { street: 'hackberry'} } }
 ```
 
@@ -206,7 +206,14 @@ store = store.set({
 
 let store = ProxyStore.set({hi: 'bob'})
 
-// OR assign the ProxyStore first
+// OR
+
+let store = ProxyStore;
+store.set({
+  hi: 'bob'
+})
+
+// OR
 ProxyStore.set({hi: 'bob'})
 let store = ProxyStore;
 ```

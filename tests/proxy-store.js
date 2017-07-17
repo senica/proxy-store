@@ -1,5 +1,44 @@
 describe('Store Tests', ()=>{
 
+  it('checks set', async (done)=>{
+    try{
+      let { window } = await jsdom(``, [])
+
+      assert(window.ProxyStore.__proxy__, true);
+
+      window.ProxyStore.set({'hi': 'senica'})
+      assert(window.ProxyStore.__proxy__, true);
+      require('assert').deepEqual(window.ProxyStore, {
+        hi: 'senica'
+      })
+
+      window.ProxyStore.set({'bob': 'was here'})
+      assert(window.ProxyStore.__proxy__, true);
+      require('assert').deepEqual(window.ProxyStore, {
+        bob: 'was here'
+      })
+
+      /**
+       * Don't do this as it will break the getter.
+       *
+       * window.ProxyStore = {'hi': 'senica'}
+       * assert(window.ProxyStore.__proxy__, true);
+       * require('assert').deepEqual(window.ProxyStore, {
+       *   hi: 'senica'
+       * })
+       * window.ProxyStore = {'bob': 'was here'}
+       * assert(window.ProxyStore.__proxy__, true);
+       * require('assert').deepEqual(window.ProxyStore, {
+       *   bob: 'was here'
+       * })
+       */
+
+      done()
+    }catch(e){
+      done(e)
+    }
+  })
+
   it('single default', async (done)=>{
     try{
 
@@ -144,6 +183,10 @@ describe('Store Tests', ()=>{
       store2 = store2.set({
         hi: 'bob'
       })
+      // or just
+      store2.set({
+        hi: 'bob',
+      })
       assert(store2.__proxy__, true);
       require('assert').deepEqual(store2, {
         hi: 'bob'
@@ -168,11 +211,21 @@ describe('Store Tests', ()=>{
           }
         ]
       })
+      let store = window.ProxyStore
+      store.set({
+        names: [
+          {
+            name: 'senica'
+          }
+        ]
+      })
       assert(window.ProxyStore.__proxy__, true);
       assert(window.ProxyStore.names.__proxy__, true);
       assert(window.ProxyStore.names[0].__proxy__, true);
       // Primatives don't get proxied
       assert(typeof window.ProxyStore.names[0].name.__proxy__, 'undefined');
+      require('assert').deepEqual(window.ProxyStore, { names: [{name: 'senica'}] })
+      require('assert').deepEqual(store, { names: [{name: 'senica'}] })
       done()
     }catch(e){
       done(e)
@@ -186,7 +239,7 @@ describe('Store Tests', ()=>{
       assert(true, false, 'This should have thrown an error.')
     }catch(e){
       try{
-        assert(e.message, 'Store must be an array or an object.')
+        assert(e.message, 'Do not set the store like this. Use .set function instead. e.g. window.Proxy.store.set({})')
         done();
       }catch(e){
         done(e)
@@ -371,6 +424,90 @@ describe('Store Tests', ()=>{
       })
       .catch((e)=>{
         done(e);
+      })
+
+    }catch(e){
+      done(e)
+    }
+  })
+
+  it('Test looping events with array; events should only trigger if they are different', async (done)=>{
+    try{
+
+
+      let { window } = await jsdom(``, [])
+
+      let count = 0;
+
+      window.ProxyStore.name = ['hello', 'john', 'senica']
+
+      let timer = null;
+      window.ProxyStore.on('store.name.0', (value)=>{
+
+        count++;
+        window.ProxyStore.name = [0, 'o'];
+        clearTimeout(timer);
+        timer = setTimeout(()=>{
+          assert(count, 2)
+          require('assert').deepEqual(window.ProxyStore.name, [0, 'o']);
+          done();
+        }, 10);
+      })
+
+    }catch(e){
+      done(e)
+    }
+  })
+
+  it('Test looping events with object; events should only trigger if they are different', async (done)=>{
+    try{
+
+
+      let { window } = await jsdom(``, [])
+
+      let count = 0;
+
+      window.ProxyStore.name = {bob: 'senica', name: 'yes'}
+
+      let timer = null;
+      window.ProxyStore.on('store.name', (value)=>{
+
+        count++;
+        window.ProxyStore.name = {bob: 'bob'};
+        clearTimeout(timer);
+        timer = setTimeout(()=>{
+          assert(count, 2)
+          require('assert').deepEqual(window.ProxyStore.name, {bob: 'bob'});
+          done();
+        }, 10);
+      })
+
+    }catch(e){
+      done(e)
+    }
+  })
+
+  it('Test looping events with primitives; events should only trigger if they are different', async (done)=>{
+    try{
+
+
+      let { window } = await jsdom(``, [])
+
+      let count = 0;
+
+      window.ProxyStore.name = 'senica'
+
+      let timer = null;
+      window.ProxyStore.on('store.name', (value)=>{
+
+        count++;
+        window.ProxyStore.name = 'hi';
+        clearTimeout(timer);
+        timer = setTimeout(()=>{
+          assert(count, 2)
+          require('assert').deepEqual(window.ProxyStore.name, 'hi');
+          done();
+        }, 10);
       })
 
     }catch(e){
