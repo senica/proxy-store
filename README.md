@@ -3,7 +3,7 @@ ProxyStore - Simplified State Store for Web Apps
 
 *NOTE* This only works with ES6 browsers.
 
-***Minified is 3KB***
+***Minified is around 5KB***
 
 History
 -------
