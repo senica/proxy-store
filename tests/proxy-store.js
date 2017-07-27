@@ -515,4 +515,41 @@ describe('Store Tests', ()=>{
     }
   })
 
+  it('Test parent chained events', async (done)=>{
+    try{
+      let { window } = await jsdom(``, [])
+      let count = 0, timer = null;
+
+      window.ProxyStore.on('store.clients', (value)=>{
+        count++;
+        clearTimeout(timer);
+        timer = setTimeout(()=>{
+          assert(count, 2)
+          require('assert').deepEqual(window.ProxyStore.clients, [
+            {client: {name: 'senica'}},
+            {client: {name: 'senica'}},
+            {client: {name: 'george'}},
+          ]);
+          require('assert').deepEqual(value, [
+            {client: {name: 'senica'}},
+            {client: {name: 'senica'}},
+            {client: {name: 'george'}},
+          ]);
+          done();
+        }, 10);
+      })
+
+      window.ProxyStore.clients = [
+        {client: {name: 'senica'}},
+        {client: {name: 'bob'}},
+        {client: {name: 'george'}},
+      ]
+
+      window.ProxyStore.clients[1].client.name = 'senica'
+
+    }catch(e){
+      done(e)
+    }
+  })
+
 })

@@ -45,7 +45,7 @@
     }else{
       // we know the proxy is traversable otherwise we could not call .defaults
       for(i in value){
-       fillDefaults(value[i], proxy[i])
+       fillDefaults(value[i], proxy[i]) // < proxy[i] will create missing value
       }
     }
   }
@@ -165,6 +165,8 @@
             makeProxy(Array.isArray(value) ? [] : {}, target, name);
           }
 
+          target[name].__suspended__ = true;
+
           for(let i in value){
             if(JSON.stringify(value[i]) == JSON.stringify(target[name][i])){
               log('child values are the same', value[i]);
@@ -175,8 +177,21 @@
             target[name][i] = value[i];
           }
 
+          delete target[name].__suspended__;
+
           // trigger after children are set so the value is the whole object
           lazy.emit(target.__label__ + '.' + name.toString(), target[name])
+
+          // Notify parents up the chain of a change. But only if it's not
+          // suspended from a bulk update
+          if(!target.__suspended__ && traversable(target) && target.__label__){
+            let t = target;
+            lazy.emit(t.__label__, t)
+            while(t = t.__parent__){
+              if(!t.__label__) break; // break on proxy
+              lazy.emit(t.__label__, t)
+            }
+          }
 
           return true;
 
@@ -191,6 +206,17 @@
           }
           target[name] = value;
           lazy.emit(target.__label__ + '.' + name.toString(), target[name])
+
+          // Notify parents up the chain of a change. But only if it's not
+          // suspended from a bulk update
+          if(!target.__suspended__ && traversable(target) && target.__label__){
+            let t = target;
+            lazy.emit(t.__label__, t)
+            while(t = t.__parent__){
+              if(!t.__label__) break;  // break on proxy
+              lazy.emit(t.__label__, t)
+            }
+          }
           return true;
         }
       }
