@@ -552,4 +552,71 @@ describe('Store Tests', ()=>{
     }
   })
 
+  it('Test parent chained events with objects', async (done)=>{
+    try{
+      let { window } = await jsdom(``, [])
+      let count = 0, timer = null;
+
+      window.ProxyStore.on('store.clients', (value)=>{
+        count++;
+        clearTimeout(timer);
+        timer = setTimeout(()=>{
+          assert(count, 1)
+          require('assert').deepEqual(window.ProxyStore.clients, {
+            name: 'senica',
+            address: {
+              street: 'blue ridge',
+              box: {
+                number: 1
+              }
+            }
+          });
+          require('assert').deepEqual(value, {
+            name: 'senica',
+            address: {
+              street: 'blue ridge',
+              box: {
+                number: 1
+              }
+            }
+          });
+          done();
+        }, 100);
+      })
+
+      window.ProxyStore.clients = {
+        name: 'senica',
+        address: {
+          street: 'blue ridge',
+          box: {
+            number: 1
+          }
+        }
+      }
+
+    }catch(e){
+      done(e)
+    }
+  })
+
+  it('Child and peer events should be triggered after all data has been set, watching events may depend on them', async (done)=>{
+    try{
+      let { window } = await jsdom(``, [])
+      let count = 0, timer = null;
+
+      window.ProxyStore.on('store.clients.name', (value)=>{
+        assert(window.ProxyStore.clients.address, 'cool way')
+        done();
+      })
+
+      window.ProxyStore.clients = {
+        name: 'senica',
+        address: 'cool way'
+      }
+
+    }catch(e){
+      done(e)
+    }
+  })
+
 })

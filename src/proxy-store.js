@@ -165,6 +165,7 @@
             makeProxy(Array.isArray(value) ? [] : {}, target, name);
           }
 
+          // Suspend any events until I'm done setting all my data
           target[name].__suspended__ = true;
 
           for(let i in value){
@@ -179,8 +180,23 @@
 
           delete target[name].__suspended__;
 
-          // trigger after children are set so the value is the whole object
-          lazy.emit(target.__label__ + '.' + name.toString(), target[name])
+          // Notify all children and itself that it was updated in bulk
+          // We do this after, so all data is set and children and siblings can
+          // use the data freely in their event handlers.
+          if(!target.__suspended__){
+            function notify_children(_target){
+              for(let t in _target){
+                if(traversable(_target[t])){
+                  notify_children(_target[t])
+                  lazy.emit(_target.__label__ + '.' + t.toString(), _target[t])
+                }else{
+                  lazy.emit(_target.__label__ + '.' + t.toString(), _target[t])
+                }
+              }
+            }
+            notify_children(target[name])
+            lazy.emit(target.__label__ + '.' + name.toString(), target[name])
+          }
 
           // Notify parents up the chain of a change. But only if it's not
           // suspended from a bulk update
@@ -205,7 +221,13 @@
             return true; // nothign to change or trigger
           }
           target[name] = value;
-          lazy.emit(target.__label__ + '.' + name.toString(), target[name])
+
+          // Don't immediately trigger events if a bulk update is happening.
+          // The listeners may depend on children or sibling data in the
+          // event handler.
+          if(!target.__suspended__){
+            lazy.emit(target.__label__ + '.' + name.toString(), target[name])
+          }
 
           // Notify parents up the chain of a change. But only if it's not
           // suspended from a bulk update
