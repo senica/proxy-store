@@ -619,4 +619,36 @@ describe('Store Tests', ()=>{
     }
   })
 
+  it('test JSON arrays', async (done)=>{
+    try{
+      let { window } = await jsdom(``, [])
+
+      window.ProxyStore.names = [];
+      window.ProxyStore.names[3] = 'senica';
+      window.ProxyStore.names[1].john.billy = 'bob';
+      window.ProxyStore.names[2];
+      window.ProxyStore.names[4].bob;
+
+      let json = JSON.parse(JSON.stringify(window.ProxyStore));
+      require('assert').deepEqual(json, {
+        names: [
+          undefined,
+          {
+            john: {
+              billy: 'bob'
+            }
+          },
+          undefined,
+          'senica',
+          {} // bob is undefined, and won't be returned.
+        ]
+      })
+
+      done();
+
+    }catch(e){
+      done(e)
+    }
+  })
+
 })

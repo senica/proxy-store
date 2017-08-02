@@ -1,5 +1,7 @@
 (function(){
 
+  // Look at Reflect.get and see if we can access target and bypass proxy?
+
   const lazy = require('lazy-events')({});
 
   /**
@@ -29,9 +31,6 @@
     }
     return false;
   }
-
-  class ProxyArray extends Array{}
-  class ProxyObject extends Object{}
 
   function fillDefaults(value, proxy){
     if(!traversable(value)){
@@ -66,17 +65,23 @@
 
         // Request to turn object to JSON from JSON.stringify
         if(name === 'toJSON'){
-          log('making json', name)
-          return JSON.stringify(target[name]);
+          // https://github.com/tvcutsem/harmony-reflect/issues/38
+          return function(){
+            // If we auto-created an object or array simply to access it, but
+            // no data has been set on it, it is undefined.
+            if(target.__auto__) return undefined;
+            return target;
+          }
         }
 
         if(name in target){
-          log('returning', name)
+          log('fetch', name, target)
           return target[name]
         }
 
         // Return length of object keys or array
         if(name === 'length'){
+          log('getting length', typeof target, target)
           return typeof target === 'object' ? Object.keys(target).length : target.length;
         }
 
@@ -96,12 +101,15 @@
           let i = Number(name);
           if(!Array.isArray(target)){ // TODO: what does this do for strings?
             log('converting parent to array', name)
-            makeProxy(new ProxyArray(), target.__parent__, target.__key__)
-            makeProxy(new ProxyObject(), target.__parent__[target.__key__], i)
+            makeProxy([], target.__parent__, target.__key__)
+            delete target.__parent__[target.__key__].__auto__; // no longer assumed to be auto set;
+            makeProxy({}, target.__parent__[target.__key__], i)
             return target.__parent__[target.__key__][i]
           }else{
             log('parent is already an array', name)
-            makeProxy(new ProxyArray(), target, i);
+            delete target.__auto__; // no longer assumed to be auto set;
+            makeProxy({}, target, i); // default to object otherise names[1].name would be {names: [name]} property on array rather than object in array
+            log('returning', target[i])
             return target[i];
           }
         }else{
@@ -109,12 +117,14 @@
           // We are trying to access an object, but it's not, convert it
           if(Array.isArray(target)){
             log('converting parent to object', name)
-            makeProxy(new ProxyObject(), target.__parent__, target.__key__)
-            makeProxy(new ProxyObject(), target.__parent__[target.__key__], name)
+            makeProxy({}, target.__parent__, target.__key__)
+            delete target.__parent__[target.__key__].__auto__; // no longer assumed to be auto set;
+            makeProxy({}, target.__parent__[target.__key__], name)
             return target.__parent__[target.__key__][name]
           }else{
             log('parent is already an object', name)
-            makeProxy(new ProxyObject(), target, name);
+            delete target.__auto__; // no longer assumed to be auto set;
+            makeProxy({}, target, name);
             return target[name]
           }
         }
@@ -132,7 +142,10 @@
       set: (target, name, value, receiver)=>{
         log('setting ', name, ' on ', target, ' to ', value);
 
+        delete target.__auto__;
+
         if(traversable(value)){
+
           // Is the incoming value the same, and it's already a proxy
           if(sameType(target[name], value) && target[name].__proxy__){
             // We do not need to set the value again, it's the same
@@ -160,13 +173,20 @@
               }
             }
           }else{
+            log('making proxy', name, value, target, Array.isArray(value))
             // They are not the same type or the target[name] is not a proxy
             // we'll start with a blank array or object and add properties
             makeProxy(Array.isArray(value) ? [] : {}, target, name);
           }
 
           // Suspend any events until I'm done setting all my data
-          target[name].__suspended__ = true;
+          Object.defineProperty(target[name], '__suspended__', {
+            enumerable: false,
+            configurable: true,
+            get: ()=>{
+              return true;
+            }
+          })
 
           for(let i in value){
             if(JSON.stringify(value[i]) == JSON.stringify(target[name][i])){
@@ -259,6 +279,15 @@
         return true;
       }
     })
+
+    // Was this autocreated? Assume always yes until it is SET in the setter.
+    Object.defineProperty(proxy, '__auto__', {
+      configurable: true,
+      get: ()=>{
+        return true;
+      }
+    })
+
     Object.defineProperty(proxy, '__label__', {
       get: ()=>{
         if(init) return false; // remove proxy namespace
